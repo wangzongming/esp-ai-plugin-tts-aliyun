@@ -4,7 +4,7 @@
     "esp-ai-plugin",
     "esp-ai-plugin-tts"
   ],
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "让 esp-ai 支持阿里云的TTS",
   "main": "index.js",
   "homepage": "https://github.com/wangzongming/esp-ai-plugin-tts-aliyun",

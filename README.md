@@ -21,31 +21,23 @@ const espAi = require("esp-ai");
 espAi({ 
     // 配置使用插件并且为插件配置api-key
     tts_server: "esp-ai-plugin-tts-aliyun",
-    api_key: {
-        "esp-ai-plugin-tts-aliyun": {
-            // 打开网址获取： https://nls-portal.console.aliyun.com/applist 
+    tts_config:{
+         // 打开网址获取： https://nls-portal.console.aliyun.com/applist 
             appkey:"xxx",
 
             // 打开网址获取：https://ram.console.aliyun.com/users
+            // AccessKeySecret 在创建时才会有
             AccessKeyID: "xxx",
             AccessKeySecret: "xxx",
-        },
-    },
+
+            // 音色: https://help.aliyun.com/zh/isi/developer-reference/overview-of-speech-synthesis?spm=a2c4g.11186623.help-menu-30413.d_3_1_0_0.63a718a34jt1PF&scm=20140722.H_84435._.OR_help-T_cn~zh-V_1#5186fe1abb7ag
+            voice:"zhiyuan",
+    } 
 
     // 引入插件
     plugins: [ 
         require("esp-ai-plugin-tts-aliyun")
-    ],
-
-    // 详细参数
-    tts_params_set: (params) => {   
-        // 音色列表： https://help.aliyun.com/zh/isi/developer-reference/overview-of-speech-synthesis?spm=a2c4g.11186623.0.0.7cd34988EWX6m3#section-uft-ohr-827
-       // 这个音色必须在控制台开通才行
-        param.voice = "zhiyuan"
-
-        // 改完后一定要返回出去
-        return params;
-    },
+    ], 
 });
 ```
 
