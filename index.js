@@ -27,81 +27,85 @@ module.exports = {
      * @param {Function}    log                 为保证日志输出的一致性，请使用 log 对象进行日志输出，eg: log.error("错误信息")、log.info("普通信息")、log.tts_info("tts 专属信息")
     */
     async main({ device_id, text, devLog, tts_config, logWSServer, tts_params_set, cb, log, ttsServerErrorCb, connectServerCb, connectServerBeforeCb }) {
-        const config = { ...tts_config }
+        try {
+            const config = { ...tts_config }
+            function genToekn() {
+                return new Promise((resolve) => {
+                    const client = new RPCClient({
+                        accessKeyId: config.AccessKeyID,
+                        accessKeySecret: config.AccessKeySecret,
+                        endpoint: 'https://nls-meta.cn-shanghai.aliyuncs.com',
+                        apiVersion: '2019-02-28'
+                    });
+                    client.request('CreateToken').then((result) => {
+                        config.token = result.Token.Id;
+                        resolve();
+                        // console.log(result)
+                        // console.log("token = " + result.Token.Id)
+                        // console.log("expireTime = " + result.Token.ExpireTime)
+                    });
+                })
+            }
 
-        function genToekn() {
-            return new Promise((resolve) => {
-                const client = new RPCClient({
-                    accessKeyId: config.AccessKeyID,
-                    accessKeySecret: config.AccessKeySecret,
-                    endpoint: 'https://nls-meta.cn-shanghai.aliyuncs.com',
-                    apiVersion: '2019-02-28'
-                });
-                client.request('CreateToken').then((result) => {
-                    config.token = result.Token.Id;
-                    resolve();
-                    // console.log(result)
-                    // console.log("token = " + result.Token.Id)
-                    // console.log("expireTime = " + result.Token.ExpireTime)
+
+            await genToekn();
+            connectServerBeforeCb();
+            const tts = new Nls.SpeechSynthesizer({
+                url: "wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1",
+                appkey: config.appkey,
+                token: config.token,
+            })
+            connectServerCb(true);
+            const wss = {
+                close: () => {
+                    // throw Error("中断TTS服务")
+                }
+            }
+            logWSServer(wss);
+            tts.on("data", (msg) => {
+                cb({
+                    // 根据服务控制
+                    is_over: false,
+                    audio: Buffer.from(msg, 'base64'),
+                    ws: wss
                 });
             })
-        }
+
+            tts.on("completed", (msg) => {
+                cb({
+                    // 根据服务控制
+                    is_over: true,
+                    audio: "",
+                    ws: wss
+                });
+            })
+
+            // tts.on("closed", () => {
+            //     console.log("Client recv closed")
+            // }) 
+            tts.on("failed", (msg) => {
+                ttsServerErrorCb(`tts错误: ${msg}`)
+            })
+
+            const param = tts.defaultStartParams()
+            param.format = "mp3"
+            param.text = text
+            param.voice = config.voice || "zhiyuan"
+            param.volume = 100;
+            param.sample_rate = 48000;
 
 
-        await genToekn();
-        connectServerBeforeCb();
-        const tts = new Nls.SpeechSynthesizer({
-            url: "wss://nls-gateway-cn-shanghai.aliyuncs.com/ws/v1",
-            appkey: config.appkey,
-            token: config.token,
-        })
-        connectServerCb(true);
-        const wss = {
-            close: () => {
-                // throw Error("中断TTS服务")
+            try {
+                tts.start(tts_params_set ? tts_params_set(param) : param, true, 6000)
+            } catch (error) {
+                ttsServerErrorCb(`tts错误: ${error}`)
+            } finally {
+
             }
+        } catch (err) {
+            connectServerCb(false);
+            log.error(`阿里云 TTS 错误： ${err}`)
         }
-        logWSServer(wss);
-        tts.on("data", (msg) => {
-            // console.log(`recv size: ${msg.length}`)  
-            let audioBuf = Buffer.from(msg, 'base64')
-            cb({
-                // 根据服务控制
-                is_over: false,
-                audio: audioBuf, 
-                ws: wss
-            });
-        })
 
-        tts.on("completed", (msg) => {
-            // console.log("Client recv completed:", msg)
-            cb({
-                // 根据服务控制
-                is_over: true,
-                audio: "", 
-                ws: wss
-            });
-        })
-
-        // tts.on("closed", () => {
-        //     console.log("Client recv closed")
-        // }) 
-        tts.on("failed", (msg) => {
-            ttsServerErrorCb(`tts错误: ${msg}`) 
-        })
-
-        const param = tts.defaultStartParams()
-        param.format = "mp3"
-        param.text = text
-        param.voice = config.voice || "zhiyuan"
-        
-
-        try {
-            tts.start(tts_params_set ? tts_params_set(param) : param, true, 6000)
-        } catch (error) {
-            ttsServerErrorCb(`tts错误: ${error}`) 
-        } finally {
-
-        }
     }
 }
